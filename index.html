@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Hoodwinkle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column of index cards on a cool paper ground; a raspberry rubber stamp marks lies, green marks the truth. */
+:root{
+  --bg:#E9EDF5; --card:#FFFFFF; --ink:#1B1F3A; --muted:#5B6180; --line:#D3D9E8;
+  --accent:#D93A62; --accent-soft:#FBE3EA; --truth:#1C8556; --truth-soft:#DDF3E8; --chip:#F2F4FA;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11132A; --card:#1B1E3B; --ink:#EDEFFA; --muted:#9CA2C6; --line:#2E3260;
+  --accent:#FF6E8E; --accent-soft:#3A1F33; --truth:#42C88E; --truth-soft:#173A2E; --chip:#24284A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11132A; --card:#1B1E3B; --ink:#EDEFFA; --muted:#9CA2C6; --line:#2E3260;
+  --accent:#FF6E8E; --accent-soft:#3A1F33; --truth:#42C88E; --truth-soft:#173A2E; --chip:#24284A; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:clamp(30px,8vw,40px);letter-spacing:-.02em;line-height:1;margin:0}
+.brand span{color:var(--accent)}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.pips{display:flex;gap:6px;margin-top:6px;justify-content:flex-end}
+.pip{width:26px;height:6px;border-radius:3px;background:var(--line)}
+.pip.done{background:var(--ink)} .pip.now{background:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:16px;position:relative}
+.eyebrow{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.q{font-family:var(--display);font-weight:600;font-size:clamp(21px,5.4vw,26px);line-height:1.25;margin:0;text-wrap:balance}
+.blank{display:inline-block;min-width:3.2em;border-bottom:3px solid var(--accent);color:var(--accent)}
+.help{color:var(--muted);font-size:14px;margin:0}
+label.lbl{font-weight:600;font-size:14px}
+input[type=text]{width:100%;font:inherit;font-size:17px;padding:13px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+input[type=text]:focus{outline:none;border-color:var(--accent)}
+.btn{font:inherit;font-weight:600;font-size:16px;padding:13px 18px;border-radius:10px;border:0;background:var(--ink);color:var(--card);cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn:focus-visible,.opt:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.err{color:var(--accent);font-size:14px;margin:0;min-height:1em}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{font:inherit;text-align:left;padding:14px 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;position:relative;overflow:hidden}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt:disabled{cursor:default}
+.opt .txt{min-width:0;overflow-wrap:anywhere;font-weight:500}
+.opt .tag{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);flex:none}
+.opt.mine{opacity:.6;border-style:dashed}
+.opt.truth{border-color:var(--truth);background:var(--truth-soft)}
+.opt.picked-wrong{border-color:var(--accent);background:var(--accent-soft)}
+.bar{position:absolute;left:0;top:0;bottom:0;background:var(--line);opacity:.45;z-index:0;transition:width .6s ease}
+.opt>*:not(.bar){position:relative;z-index:1}
+.pct{font-family:var(--mono);font-size:13px;color:var(--muted);flex:none}
+.stamp{position:absolute;right:14px;top:14px;font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.08em;padding:2px 10px;border:3px solid currentColor;border-radius:6px;transform:rotate(-9deg);opacity:.9}
+.stamp.fib{color:var(--accent)} .stamp.true{color:var(--truth)}
+@media (prefers-reduced-motion:no-preference){.stamp{animation:thunk .35s cubic-bezier(.2,1.6,.4,1)} @keyframes thunk{from{transform:rotate(-9deg) scale(1.8);opacity:0}}}
+.fact{background:var(--chip);border-radius:10px;padding:14px 16px;font-size:15px}
+.fact a{color:var(--ink);font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.btn{flex:1 1 140px}
+.score{font-family:var(--display);font-weight:800;font-size:56px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--chip);border-radius:10px;padding:12px 14px}
+.stat b{display:block;font-family:var(--mono);font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.recap{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.recap li{border-top:1px solid var(--line);padding-top:10px;font-size:15px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.recap .lie{color:var(--accent);font-weight:600;overflow-wrap:anywhere}
+.share{font-family:var(--mono);font-size:13px;white-space:pre-wrap;background:var(--chip);border-radius:10px;padding:12px 14px;margin:0}
+.note{font-size:13px;color:var(--muted);margin:0}
+.how{font-size:14px;color:var(--muted)}
+.how summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.how ol{padding-left:20px;margin:8px 0 0}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1 class="brand">Hood<span>wink</span>le</h1>
+      <div class="meta" id="meta">Daily · loading</div>
+    </div>
+    <div>
+      <div class="meta" style="text-align:right" id="mode">Connecting…</div>
+      <div class="pips" id="pips"></div>
+    </div>
+  </header>
+  <main id="app"></main>
+  <details class="how">
+    <summary>How to play</summary>
+    <ol>
+      <li>Read today's strange-but-true fact with the key word blanked out.</li>
+      <li>Write a believable lie to fill the blank. Other players will see it.</li>
+      <li>Pick the real answer out of the lies. Truth is worth 100 points.</li>
+      <li>Every player who falls for your lie earns you 10 more, all day long.</li>
+    </ol>
+  </details>
+</div>
+
+<script>
+const QUESTIONS = [
+  {q:"In 1932, the Australian military was sent to fight a war against ___.",a:"emus",accept:["emu","emus"],seeds:["kangaroos","dingoes","feral camels","locusts"],fact:"The Great Emu War: soldiers with machine guns were sent after about 20,000 emus eating wheat crops in Western Australia. The emus mostly won.",src:"https://en.wikipedia.org/wiki/Emu_War"},
+  {q:"Scotland's official national animal is the ___.",a:"unicorn",accept:["unicorn","unicorns"],seeds:["red deer","golden eagle","Highland cow","Loch Ness monster"],fact:"The unicorn has been a Scottish heraldic symbol since the 1300s and appears on the royal coat of arms.",src:"https://en.wikipedia.org/wiki/Unicorn"},
+  {q:"A group of flamingos is called a ___.",a:"flamboyance",accept:["flamboyance","a flamboyance"],seeds:["pinkening","parade","blush","stilt"],fact:"A flock of flamingos is known as a flamboyance.",src:"https://en.wikipedia.org/wiki/Flamingo"},
+  {q:"Wombats produce poop shaped like ___.",a:"cubes",accept:["cube","cubes","cubed","squares","dice"],seeds:["stars","tiny spirals","flat discs","perfect spheres"],fact:"Wombat intestines have regions of different stiffness that shape droppings into cubes, which don't roll away from the rocks they mark.",src:"https://en.wikipedia.org/wiki/Wombat"},
+  {q:"The University of Oxford is older than the ___ Empire.",a:"Aztec",accept:["aztec","aztecs","aztec empire"],seeds:["Roman","Byzantine","Holy Roman","Carolingian"],fact:"Teaching at Oxford existed by 1096. The Aztec capital Tenochtitlan was founded in 1325.",src:"https://en.wikipedia.org/wiki/University_of_Oxford"},
+  {q:"In 1923, jockey Frank Hayes won a race at Belmont Park despite being ___.",a:"dead",accept:["dead","deceased","already dead"],seeds:["blindfolded","asleep","on the wrong horse","seven years old"],fact:"Hayes had a heart attack mid-race. His horse carried his body across the finish line in first place.",src:"https://en.wikipedia.org/wiki/Frank_Hayes_(jockey)"},
+  {q:"The inventor of the Pringles can asked to have his ashes buried in a ___.",a:"Pringles can",accept:["pringles can","pringles tube","pringle can","pringles canister"],seeds:["bowling ball","lava lamp","Lego model","giant chip bag"],fact:"Fredric Baur's family honored his request in 2008 and buried part of his ashes in a Pringles can.",src:"https://en.wikipedia.org/wiki/Fredric_Baur"},
+  {q:"Cleopatra lived closer in time to the Moon landing than to the building of the ___.",a:"Great Pyramid",accept:["great pyramid","great pyramid of giza","pyramids","pyramids of giza","pyramid"],seeds:["Parthenon","Colosseum","Library of Alexandria","Lighthouse of Alexandria"],fact:"The Great Pyramid was finished around 2560 BC. Cleopatra died in 30 BC, about 2,000 years before Apollo 11.",src:"https://en.wikipedia.org/wiki/Great_Pyramid_of_Giza"},
+  {q:"On ___, a single day lasts longer than a whole year.",a:"Venus",accept:["venus"],seeds:["Mars","Pluto","Neptune","Saturn"],fact:"Venus takes 243 Earth days to spin once and 225 Earth days to orbit the Sun.",src:"https://en.wikipedia.org/wiki/Venus"},
+  {q:"Bananas are naturally slightly ___.",a:"radioactive",accept:["radioactive"],seeds:["magnetic","explosive","carnivorous","bulletproof"],fact:"Bananas contain potassium, including a tiny amount of the radioactive isotope potassium-40.",src:"https://en.wikipedia.org/wiki/Banana_equivalent_dose"},
+  {q:"The Anglo-Zanzibar War of 1896, the shortest war ever recorded, lasted about ___.",a:"38 minutes",accept:["38 minutes","38","40 minutes","45 minutes","38 mins","38 min"],seeds:["11 hours","3 days","90 seconds","6 hours"],fact:"Britain and Zanzibar fought for somewhere between 38 and 45 minutes before Zanzibar surrendered.",src:"https://en.wikipedia.org/wiki/Anglo-Zanzibar_War"},
+  {q:"Sea otters ___ while they sleep so they don't drift apart.",a:"hold hands",accept:["hold hands","holding hands","hold paws","link paws"],seeds:["sleep in a circle facing out","stack on top of each other","link tails","whistle every few minutes"],fact:"Floating sea otters often hold paws or wrap themselves in kelp to stay together.",src:"https://en.wikipedia.org/wiki/Sea_otter"},
+  {q:"The first item ever sold on eBay was a broken ___.",a:"laser pointer",accept:["laser pointer","laser"],seeds:["toaster","Nintendo 64","calculator","fax machine"],fact:"In 1995 founder Pierre Omidyar sold a broken laser pointer for $14.83 to a collector of broken laser pointers.",src:"https://en.wikipedia.org/wiki/EBay"},
+  {q:"In Switzerland it's illegal to own just one ___, because they get lonely.",a:"guinea pig",accept:["guinea pig","guinea pigs","cavy"],seeds:["hamster","tortoise","hedgehog","snail"],fact:"Swiss animal welfare law classes guinea pigs as social animals that must be kept with at least one companion.",src:"https://en.wikipedia.org/wiki/Guinea_pig"},
+  {q:"Archaeologists have found pots of still-edible ___ in ancient Egyptian tombs.",a:"honey",accept:["honey"],seeds:["cheese","bread","olive oil","beer"],fact:"Honey's low moisture and acidity keep bacteria out. Jars thousands of years old have been found intact.",src:"https://en.wikipedia.org/wiki/Honey"},
+];
+
+const EPOCH = Date.UTC(2026,10,14);
+const now = new Date();
+const DAY = Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()) - EPOCH)/864e5);
+const PUZZLE_NO = DAY + 1;
+const DAY_KEY = new Date(EPOCH + DAY*864e5).toISOString().slice(0,10);
+const mod = (n,m)=>((n%m)+m)%m;
+const todayQ = [0,1,2].map(i => QUESTIONS[mod(DAY*3+i, QUESTIONS.length)]);
+
+/* ---------- state ---------- */
+let db = null, uid = null, online = false;
+let mine = {days:{}};          // this viewer's plays doc
+let others = new Map();        // uid -> doc (everyone, incl. me)
+let reveal = null;             // index of question whose reveal is showing
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function today(){ return (mine.days[DAY_KEY] ||= {q:[{},{},{}]}); }
+
+/* ---------- lie checks ---------- */
+const norm = s => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9 ]/g,"").replace(/\b(the|a|an)\b/g,"").replace(/\s+/g," ").trim();
+function lev(a,b){const m=a.length,n=b.length;const d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);for(let j=1;j<=n;j++)d[0][j]=j;for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n];}
+function closeToTruth(lie,q){
+  const l = norm(lie); if(!l) return false;
+  return q.accept.map(norm).some(t => l===t || (t.length>=4 && (l.includes(t))) || (Math.max(l.length,t.length)>=5 && 1-lev(l,t)/Math.max(l.length,t.length) >= .8));
+}
+const BLOCK = /(f+u+c+k|sh[i1]t|c+u+n+t|b[i1]tch|n[i1]gg|f[a@]gg|r[e3]t[a@]rd|wh[o0]re|sl[u]t|k[i1]ke|sp[i1]c\b|ch[i1]nk|tr[a@]nn|r[a@]p(e|ist)|n[a@]z[i1]|https?:|www\.|\.com\b)/i;
+function lieProblem(lie,q){
+  const t = lie.trim();
+  if(t.length < 2) return "Write at least a couple of letters.";
+  if(t.length > 40) return "Keep it under 40 characters so it fits the blank.";
+  if(BLOCK.test(t)) return "That one won't get past the moderators. Try a cleaner lie.";
+  if(norm(t) && q.seeds.some(s => norm(s)===norm(t))) return "Someone already thought of that one. Try something more original.";
+  return null;
+}
+
+/* ---------- aggregation across all players ---------- */
+function aggregate(qi){
+  others.set(uid, mine);
+  const lies = new Map(), fooled = new Map(), shown = new Map(), counts = new Map();
+  let pickers = 0;
+  for (const [id, doc] of others){
+    const e = doc?.days?.[DAY_KEY]?.q?.[qi]; if(!e) continue;
+    if (e.lie && e.status==="ok") lies.set("u:"+id, e.lie);
+    if (e.pick){
+      pickers++;
+      counts.set(e.pick,(counts.get(e.pick)||0)+1);
+      if (e.pick.startsWith("u:")) fooled.set(e.pick,(fooled.get(e.pick)||0)+1);
+      for (const s of (e.shown||[])) shown.set(s,(shown.get(s)||0)+1);
+    }
+  }
+  return {lies,fooled,shown,counts,pickers};
+}
+function chooseOptions(qi){
+  const q = todayQ[qi], ag = aggregate(qi), myId = "u:"+uid;
+  const pool = [...ag.lies.entries()].filter(([id])=>id!==myId).map(([id,text])=>({id,text,f:ag.fooled.get(id)||0,s:ag.shown.get(id)||0}));
+  const chosen = [];
+  const proven = pool.filter(p=>p.s>=3).sort((a,b)=>(b.f+1)/(b.s+3)-(a.f+1)/(a.s+3)).slice(0,2);
+  chosen.push(...proven);
+  const fresh = pool.filter(p=>!chosen.includes(p)).sort((a,b)=>a.s-b.s || Math.random()-.5)[0];
+  if (fresh) chosen.push(fresh);
+  const seeds = q.seeds.map((t,i)=>({id:"s"+i,text:t})).sort(()=>Math.random()-.5);
+  while (chosen.length < 4 && seeds.length) chosen.push(seeds.pop());
+  const ids = [...chosen.map(c=>c.id),"t"];
+  for (let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
+  return ids;
+}
+function optText(qi,id){
+  const q = todayQ[qi];
+  if (id==="t") return q.a;
+  if (id.startsWith("s")) return q.seeds[+id.slice(1)];
+  const doc = id==="u:"+uid ? mine : others.get(id.slice(2));
+  return doc?.days?.[DAY_KEY]?.q?.[qi]?.lie ?? "(a lie)";
+}
+function myFooled(dayKey, qi){
+  let n = 0;
+  for (const [id,doc] of others){ if(id===uid) continue; if (doc?.days?.[dayKey]?.q?.[qi]?.pick === "u:"+uid) n++; }
+  return n;
+}
+
+/* ---------- persistence ---------- */
+let saving = Promise.resolve();
+function save(){
+  try { localStorage.setItem("hw-mine", JSON.stringify(mine)); } catch(e){}
+  if (!online) return;
+  const keep = Object.keys(mine.days).sort().slice(-7);
+  mine.days = Object.fromEntries(keep.map(k=>[k,mine.days[k]]));
+  const body = JSON.parse(JSON.stringify(mine));
+  saving = saving.then(()=>db.doc("plays/"+uid).set(body)).catch(e=>{
+    if (e?.code==="invalid_argument"){ online=false; setMode("Your lies stay on this device"); }
+  });
+}
+
+/* ---------- rendering ---------- */
+function setMode(t){ $("#mode").textContent = t; }
+function renderPips(){
+  const t = today();
+  $("#pips").innerHTML = t.q.map((e,i)=>`<div class="pip ${e.pick?"done":(i===current()?"now":"")}"></div>`).join("");
+}
+function current(){ const t = today(); const i = t.q.findIndex(e=>!e.pick); return i; }
+
+function render(){
+  $("#meta").textContent = `No. ${PUZZLE_NO} · ${new Date(EPOCH+DAY*864e5).toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}`;
+  renderPips();
+  const app = $("#app");
+  if (reveal !== null) return renderReveal(app, reveal);
+  const i = current();
+  if (i === -1) return renderResults(app);
+  const e = today().q[i], q = todayQ[i];
+  if (!e.lie && e.status!=="close") return renderWrite(app,i,q);
+  return renderPick(app,i,q,e);
+}
+
+function qHTML(q){ return esc(q.q).replace("___",'<span class="blank">&nbsp;?&nbsp;</span>'); }
+
+function renderWrite(app,i,q){
+  const draft = sessionDraft[i] || "";
+  app.innerHTML = `<section class="card">
+    <div class="eyebrow">Fact ${i+1} of 3 · Write a lie</div>
+    <p class="q">${qHTML(q)}</p>
+    <p class="help">Fill the blank with something false but believable. Other players will see it among the choices.</p>
+    <form id="lieForm" style="display:flex;flex-direction:column;gap:10px">
+      <label class="lbl" for="lie">Your lie</label>
+      <input type="text" id="lie" maxlength="40" autocomplete="off" placeholder="Something convincing" value="${esc(draft)}">
+      <p class="err" id="err"></p>
+      <button class="btn" id="lock" type="submit">Lock in my lie</button>
+    </form>
+  </section>`;
+  const inp = $("#lie");
+  inp.addEventListener("input",()=>{ sessionDraft[i]=inp.value; $("#err").textContent=""; });
+  $("#lieForm").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const lie = inp.value.trim();
+    const e = today().q[i];
+    if (closeToTruth(lie,q)){
+      Object.assign(e,{lie,status:"close",pick:"t",shown:[],opts:["t"],score:150});
+      save(); reveal = i; render(); return;
+    }
+    const p = lieProblem(lie,q);
+    if (p){ $("#err").textContent = p; return; }
+    Object.assign(e,{lie,status:"ok"});
+    save(); render();
+  });
+}
+const sessionDraft = {};
+
+function renderPick(app,i,q,e){
+  if (!e.opts) { e.opts = chooseOptions(i); e.minePos = Math.floor(Math.random()*(e.opts.length+1)); save(); }
+  const list = [...e.opts];
+  const minePos = e.minePos ?? list.length;
+  app.innerHTML = `<section class="card">
+    <div class="eyebrow">Fact ${i+1} of 3 · Find the truth</div>
+    <p class="q">${qHTML(q)}</p>
+    <p class="help">One of these is real. The rest are lies from other players.</p>
+    <div class="opts" id="opts"></div>
+  </section>`;
+  const box = $("#opts");
+  const rows = list.map(id=>`<button class="opt" data-id="${id}" type="button"><span class="txt">${esc(optText(i,id))}</span></button>`);
+  rows.splice(minePos,0,`<button class="opt mine" disabled type="button"><span class="txt">${esc(e.lie)}</span><span class="tag">Your lie</span></button>`);
+  box.innerHTML = rows.join("");
+  box.querySelectorAll("button[data-id]").forEach(b=>b.addEventListener("click",()=>{
+    e.pick = b.dataset.id; e.shown = list.filter(x=>x!=="t"); e.score = e.pick==="t"?100:0;
+    save(); reveal = i; render();
+  }));
+}
+
+function renderReveal(app,i){
+  const q = todayQ[i], e = today().q[i], ag = aggregate(i);
+  const total = Math.max(1, ag.pickers);
+  const ids = e.status==="close" ? [] : e.opts;
+  const right = e.pick==="t";
+  const rows = ids.map(id=>{
+    const n = ag.counts.get(id)||0, pct = Math.round(100*n/total);
+    const cls = id==="t" ? "truth" : (id===e.pick ? "picked-wrong" : "");
+    const tag = id==="t" ? "True" : (id===e.pick ? "You picked" : "");
+    return `<div class="opt ${cls}"><span class="bar" style="width:${pct}%"></span><span class="txt">${esc(optText(i,id))}</span><span class="pct">${tag?tag+" · ":""}${pct}%</span></div>`;
+  }).join("");
+  const headline = e.status==="close" ? "You wrote the real answer. You knew it already."
+    : right ? "You spotted the truth." : `Fooled by “${esc(optText(i,e.pick))}”.`;
+  app.innerHTML = `<section class="card">
+    <span class="stamp ${right?"true":"fib"}">${right?"TRUE":"FIB"}</span>
+    <div class="eyebrow">Fact ${i+1} of 3 · ${right?"+"+(e.score)+" points":"0 points"}</div>
+    <p class="q" style="padding-right:84px">${esc(headline)}</p>
+    ${rows?`<div class="opts">${rows}</div>`:""}
+    <div class="fact"><strong>${esc(q.a)}.</strong> ${esc(q.fact)} <a href="${q.src}" target="_blank" rel="noopener">Source</a></div>
+    ${e.status==="ok"?`<p class="note">Your lie “${esc(e.lie)}” is now in the pool. Check back later to see who fell for it.</p>`:""}
+    <button class="btn" id="next" type="button">${current()===-1?"See my results":"Next fact"}</button>
+  </section>`;
+  $("#next").addEventListener("click",()=>{ reveal=null; render(); window.scrollTo({top:0}); });
+}
+
+function renderResults(app){
+  const t = today();
+  const truths = t.q.filter(e=>e.pick==="t").length;
+  const base = t.q.reduce((s,e)=>s+(e.score||0),0);
+  const fooledToday = t.q.map((e,i)=> e.status==="ok" ? myFooled(DAY_KEY,i) : 0);
+  const totalFooled = fooledToday.reduce((a,b)=>a+b,0);
+  const score = base + totalFooled*10;
+  const share = `Hoodwinkle No. ${PUZZLE_NO}\n${t.q.map(e=>e.pick==="t"?"🟩":"🟥").join("")} ${truths}/3 truths\n🎭 My lies fooled ${totalFooled} ${totalFooled===1?"person":"people"}\n${score} pts`;
+  const past = Object.keys(mine.days).filter(k=>k!==DAY_KEY).sort().reverse().slice(0,3).map(k=>{
+    const n = (mine.days[k].q||[]).reduce((s,e,i)=>s+(e.status==="ok"?myFooled(k,i):0),0);
+    return `<li><span>${new Date(k+"T00:00:00Z").toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}</span><span>Your lies fooled <b>${n}</b></span></li>`;
+  }).join("");
+  const nextMs = EPOCH + (DAY+1)*864e5 - Date.now();
+  const hrs = Math.floor(nextMs/36e5), mins = Math.floor(nextMs%36e5/6e4);
+  app.innerHTML = `<section class="card">
+    <div class="eyebrow">Today's score</div>
+    <div class="score">${score}</div>
+    <div class="stats">
+      <div class="stat"><b>${truths}/3</b><span>Truths found</span></div>
+      <div class="stat"><b>${totalFooled}</b><span>${online?"Players fooled so far":"Fooled (offline)"}</span></div>
+    </div>
+    <ul class="recap">${t.q.map((e,i)=>`<li><span>${esc(todayQ[i].q.replace("___", todayQ[i].a))}</span>${e.status==="ok"?`<span>Your lie: <span class="lie">${esc(e.lie)}</span> · fooled ${fooledToday[i]}</span>`:`<span>You wrote the real answer</span>`}</li>`).join("")}</ul>
+    <pre class="share" id="shareText">${esc(share)}</pre>
+    <div class="row"><button class="btn" id="copy" type="button">Copy result</button></div>
+    <p class="note">${online?"Your lies keep working while you're away. Your score goes up every time someone falls for one.":"You're playing on this device only, so other players won't see your lies."} Next set in ${hrs}h ${mins}m.</p>
+  </section>
+  ${past?`<section class="card"><div class="eyebrow">Earlier lies</div><ul class="recap">${past}</ul></section>`:""}`;
+  $("#copy").addEventListener("click", async ()=>{
+    try { await navigator.clipboard.writeText(share); $("#copy").textContent="Copied"; }
+    catch(e){ const r=document.createRange(); r.selectNodeContents($("#shareText")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); $("#copy").textContent="Selected, press copy"; }
+  });
+}
+
+/* ---------- boot ---------- */
+try { const s = JSON.parse(localStorage.getItem("hw-mine")||"null"); if (s?.days) mine = s; } catch(e){}
+uid = uid || "local";
+render();
+
+(async () => {
+  const user = await window.claude?.use?.("user");
+  db = await window.claude?.use?.("db");
+  const id = user ? await user.id() : null;
+  if (!db || !id){ setMode("Playing on this device"); return; }
+  uid = id; online = true; setMode("Live · lies shared");
+  let loaded = false;
+  const timer = setTimeout(()=>{ if(!loaded) setMode("Can't reach other players yet"); }, 10000);
+  db.collection("plays").onSnapshot(snap => {
+    others = new Map(snap.docs.filter(d=>d.exists).map(d=>[d.id, d.data()]));
+    if (!loaded && !snap.metadata.fromCache){
+      loaded = true; clearTimeout(timer); setMode("Live · lies shared");
+      const remote = others.get(uid);
+      if (remote?.days) {
+        // merge: keep whichever copy has more progress for today
+        const prog = d => (d?.days?.[DAY_KEY]?.q||[]).reduce((s,e)=>s+(e.lie?1:0)+(e.pick?1:0),0);
+        if (prog(remote) >= prog(mine)) mine = JSON.parse(JSON.stringify(remote));
+        else save();
+      } else if (Object.keys(mine.days).length) save();
+    }
+    others.set(uid, mine);
+    const active = document.activeElement;
+    if (!(active && active.id==="lie")) render();
+  }, err => { clearTimeout(timer); setMode("Can't reach other players"); });
+})();
+</script>
+
+</body>
+</html>

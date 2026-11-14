@@ -12,8 +12,29 @@ Finding the truth is worth 100 points. Each player your lie fools is worth 10. W
 
 Prototype. `index.html` is the whole game: plain HTML, CSS and JavaScript with no build step.
 
-- **Shared lie pool:** works when the page runs as a claude.ai artifact, which provides a shared database. Opened anywhere else (GitHub Pages, a local file), the game falls back to single-player mode with pre-written decoy lies.
+- **Shared lie pool:** on the public site the game talks to a small API backed by Postgres on Neon. When the page runs as a claude.ai artifact it uses the artifact's shared database instead. If neither is reachable, the game falls back to single-player mode with pre-written decoy lies.
 - **Question bank:** 15 facts, enough for 5 days, then it repeats.
+
+## Backend
+
+```
+browser ──HTTPS──▶ api/ (Neon Function) ──SQL over HTTPS──▶ Postgres (Neon)
+```
+
+- **`db/migrations/`** creates two tables (`hw_players`, `hw_plays`) and four database functions. Row-level security is on with no policies, and the tables are revoked from everyone, so the only way in is through the functions.
+- **`hw_api` role:** the API connects as a role that can execute `hw_day`, `hw_submit_lie` and `hw_submit_pick` and nothing else. It can't read or write a table directly.
+- **Players are anonymous.** The browser makes a random token and keeps it in `localStorage`. The database stores only its SHA-256 hash and hands back a public id.
+- **Writes are validated in the database:** the day must be today (UTC, ±1 day), lies are 2–40 characters and pass a word filter, a lie can't be changed once written, and you can't pick your own lie.
+- **`api/index.mjs`** has no dependencies. It allows only the origins listed in `ALLOWED_ORIGINS`, caps request bodies at 4 KB and limits each IP to 60 calls a minute.
+
+The API reads two environment variables, set on the function and never committed:
+
+| Variable | Value |
+| --- | --- |
+| `HW_DB_URL` | connection string for the `hw_api` role |
+| `ALLOWED_ORIGINS` | comma-separated origins, e.g. `https://chrispivonka.github.io` |
+
+To deploy, zip `api/index.mjs` and deploy it as a Neon Function on the project's branch, then put its URL in `API_URL` near the top of the script in `index.html`.
 
 ## How lies are picked
 
@@ -27,7 +48,7 @@ Your own lie appears in the list but can't be picked.
 
 ## Roadmap
 
-- [ ] Move the shared pool to a real backend (Supabase or AWS) so the public site has multiplayer
+- [x] Move the shared pool to a real backend so the public site has multiplayer
 - [ ] Server-side moderation: word filter plus an AI moderation check, and a report button
 - [ ] Grow the question bank to at least a year of facts, each checked against a source
 - [ ] "Your lie fooled N people" summary when you come back the next day

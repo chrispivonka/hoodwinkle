@@ -1,7 +1,7 @@
 // Hoodwinkle API: a tiny Neon Function between the browser and Postgres.
 //
-// It exposes exactly three database functions (hw_day, hw_submit_lie,
-// hw_submit_pick) and nothing else. It connects as the low-privilege role
+// It exposes exactly four database functions (hw_day, hw_submit_lie,
+// hw_submit_pick, hw_report) and nothing else. It connects as the low-privilege role
 // hw_api, which can call those functions but can't read or write any table.
 //
 // Environment:
@@ -27,7 +27,7 @@ async function sql(query, params) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(body.message || `database error ${res.status}`);
-    err.expected = typeof body.message === "string" && /invalid token|puzzle is closed|lie rejected|own lie|violates check/.test(body.message);
+    err.expected = typeof body.message === "string" && /invalid token|puzzle is closed|lie rejected|own lie|no such lie|bad question|violates check/.test(body.message);
     throw err;
   }
   return body.rows || [];
@@ -37,6 +37,7 @@ const pgArray = a => "{" + a.map(v => '"' + String(v).replace(/["\\]/g, "\\$&") 
 const str = (v, max = 200) => { if (typeof v !== "string" || v.length > max) throw bad("bad argument"); return v; };
 const day = v => { if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw bad("bad day"); return v; };
 const q = v => { if (![0, 1, 2].includes(v)) throw bad("bad question"); return String(v); };
+const uuid = v => { if (typeof v !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v)) throw bad("bad player"); return v; };
 const bad = msg => Object.assign(new Error(msg), { expected: true });
 
 const CALLS = {
@@ -56,6 +57,11 @@ const CALLS = {
       const shown = Array.isArray(a.p_shown) ? a.p_shown.slice(0, 6).map(s => str(s, 40)) : [];
       return [str(a.p_token), day(a.p_day), q(a.p_q), str(a.p_pick, 40), pgArray(shown)];
     },
+    result: () => null,
+  },
+  hw_report: {
+    sql: "select public.hw_report($1, $2::date, $3::int, $4::uuid)",
+    args: a => [str(a.p_token), day(a.p_day), q(a.p_q), uuid(a.p_player)],
     result: () => null,
   },
 };
@@ -89,7 +95,7 @@ export default {
       try { await sql("select 1", []); return json({ ok: true }, 200, h); }
       catch { return json({ ok: false }, 503, h); }
     }
-    const m = url.pathname.match(/^\/rpc\/(hw_day|hw_submit_lie|hw_submit_pick)$/);
+    const m = url.pathname.match(/^\/rpc\/(hw_day|hw_submit_lie|hw_submit_pick|hw_report)$/);
     if (req.method !== "POST" || !m) return json({ error: "not found" }, 404, h);
     const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
     if (limited(ip)) return json({ error: "slow down" }, 429, h);

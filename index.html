@@ -81,6 +81,20 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .how{font-size:14px;color:var(--muted)}
 .how summary{cursor:pointer;font-weight:600;color:var(--ink)}
 .how ol{padding-left:20px;margin:8px 0 0}
+.toggle{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink);margin-top:10px;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--accent)}
+.banner{background:var(--truth-soft);border:1px solid var(--truth);border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:15px}
+.banner b{font-family:var(--mono)}
+.banner button{font:inherit;font-size:13px;background:none;border:0;color:var(--muted);cursor:pointer;text-decoration:underline;flex:none}
+.report{font:inherit;font-size:12px;background:none;border:0;color:var(--muted);cursor:pointer;text-decoration:underline;padding:2px;flex:none}
+.report:disabled{text-decoration:none;cursor:default}
+.timer{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--accent);transition:width .25s linear}
+.timer-label{font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right;margin-top:-10px}
+.stats4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.stats4 .stat{padding:10px 8px;text-align:center}
+.stats4 .stat b{font-size:18px}
+@media (max-width:420px){.stats4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 
 <div class="wrap">
@@ -103,28 +117,13 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
       <li>Pick the real answer out of the lies. Truth is worth 100 points.</li>
       <li>Every player who falls for your lie earns you 10 more, all day long.</li>
     </ol>
+    <p style="margin:8px 0 0">A new set of three facts unlocks at midnight UTC. Spot a lie that crosses the line? Report it after you answer. Lies with enough reports disappear.</p>
+    <label class="toggle"><input type="checkbox" id="timed"> Timed mode: 30 seconds to find the truth, so nobody can look it up</label>
   </details>
 </div>
 
+<script src="questions.js"></script>
 <script>
-const QUESTIONS = [
-  {q:"In 1932, the Australian military was sent to fight a war against ___.",a:"emus",accept:["emu","emus"],seeds:["kangaroos","dingoes","feral camels","locusts"],fact:"The Great Emu War: soldiers with machine guns were sent after about 20,000 emus eating wheat crops in Western Australia. The emus mostly won.",src:"https://en.wikipedia.org/wiki/Emu_War"},
-  {q:"Scotland's official national animal is the ___.",a:"unicorn",accept:["unicorn","unicorns"],seeds:["red deer","golden eagle","Highland cow","Loch Ness monster"],fact:"The unicorn has been a Scottish heraldic symbol since the 1300s and appears on the royal coat of arms.",src:"https://en.wikipedia.org/wiki/Unicorn"},
-  {q:"A group of flamingos is called a ___.",a:"flamboyance",accept:["flamboyance","a flamboyance"],seeds:["pinkening","parade","blush","stilt"],fact:"A flock of flamingos is known as a flamboyance.",src:"https://en.wikipedia.org/wiki/Flamingo"},
-  {q:"Wombats produce poop shaped like ___.",a:"cubes",accept:["cube","cubes","cubed","squares","dice"],seeds:["stars","tiny spirals","flat discs","perfect spheres"],fact:"Wombat intestines have regions of different stiffness that shape droppings into cubes, which don't roll away from the rocks they mark.",src:"https://en.wikipedia.org/wiki/Wombat"},
-  {q:"The University of Oxford is older than the ___ Empire.",a:"Aztec",accept:["aztec","aztecs","aztec empire"],seeds:["Roman","Byzantine","Holy Roman","Carolingian"],fact:"Teaching at Oxford existed by 1096. The Aztec capital Tenochtitlan was founded in 1325.",src:"https://en.wikipedia.org/wiki/University_of_Oxford"},
-  {q:"In 1923, jockey Frank Hayes won a race at Belmont Park despite being ___.",a:"dead",accept:["dead","deceased","already dead"],seeds:["blindfolded","asleep","on the wrong horse","seven years old"],fact:"Hayes had a heart attack mid-race. His horse carried his body across the finish line in first place.",src:"https://en.wikipedia.org/wiki/Frank_Hayes_(jockey)"},
-  {q:"The inventor of the Pringles can asked to have his ashes buried in a ___.",a:"Pringles can",accept:["pringles can","pringles tube","pringle can","pringles canister"],seeds:["bowling ball","lava lamp","Lego model","giant chip bag"],fact:"Fredric Baur's family honored his request in 2008 and buried part of his ashes in a Pringles can.",src:"https://en.wikipedia.org/wiki/Fredric_Baur"},
-  {q:"Cleopatra lived closer in time to the Moon landing than to the building of the ___.",a:"Great Pyramid",accept:["great pyramid","great pyramid of giza","pyramids","pyramids of giza","pyramid"],seeds:["Parthenon","Colosseum","Library of Alexandria","Lighthouse of Alexandria"],fact:"The Great Pyramid was finished around 2560 BC. Cleopatra died in 30 BC, about 2,000 years before Apollo 11.",src:"https://en.wikipedia.org/wiki/Great_Pyramid_of_Giza"},
-  {q:"On ___, a single day lasts longer than a whole year.",a:"Venus",accept:["venus"],seeds:["Mars","Pluto","Neptune","Saturn"],fact:"Venus takes 243 Earth days to spin once and 225 Earth days to orbit the Sun.",src:"https://en.wikipedia.org/wiki/Venus"},
-  {q:"Bananas are naturally slightly ___.",a:"radioactive",accept:["radioactive"],seeds:["magnetic","explosive","carnivorous","bulletproof"],fact:"Bananas contain potassium, including a tiny amount of the radioactive isotope potassium-40.",src:"https://en.wikipedia.org/wiki/Banana_equivalent_dose"},
-  {q:"The Anglo-Zanzibar War of 1896, the shortest war ever recorded, lasted about ___.",a:"38 minutes",accept:["38 minutes","38","40 minutes","45 minutes","38 mins","38 min"],seeds:["11 hours","3 days","90 seconds","6 hours"],fact:"Britain and Zanzibar fought for somewhere between 38 and 45 minutes before Zanzibar surrendered.",src:"https://en.wikipedia.org/wiki/Anglo-Zanzibar_War"},
-  {q:"Sea otters ___ while they sleep so they don't drift apart.",a:"hold hands",accept:["hold hands","holding hands","hold paws","link paws"],seeds:["sleep in a circle facing out","stack on top of each other","link tails","whistle every few minutes"],fact:"Floating sea otters often hold paws or wrap themselves in kelp to stay together.",src:"https://en.wikipedia.org/wiki/Sea_otter"},
-  {q:"The first item ever sold on eBay was a broken ___.",a:"laser pointer",accept:["laser pointer","laser"],seeds:["toaster","Nintendo 64","calculator","fax machine"],fact:"In 1995 founder Pierre Omidyar sold a broken laser pointer for $14.83 to a collector of broken laser pointers.",src:"https://en.wikipedia.org/wiki/EBay"},
-  {q:"In Switzerland it's illegal to own just one ___, because they get lonely.",a:"guinea pig",accept:["guinea pig","guinea pigs","cavy"],seeds:["hamster","tortoise","hedgehog","snail"],fact:"Swiss animal welfare law classes guinea pigs as social animals that must be kept with at least one companion.",src:"https://en.wikipedia.org/wiki/Guinea_pig"},
-  {q:"Archaeologists have found pots of still-edible ___ in ancient Egyptian tombs.",a:"honey",accept:["honey"],seeds:["cheese","bread","olive oil","beer"],fact:"Honey's low moisture and acidity keep bacteria out. Jars thousands of years old have been found intact.",src:"https://en.wikipedia.org/wiki/Honey"},
-];
-
 const EPOCH = Date.UTC(2026,10,14);
 const now = new Date();
 const DAY = Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()) - EPOCH)/864e5);
@@ -141,6 +140,12 @@ let db = null, uid = null, online = false, backend = null, TOKEN = null, history
 let mine = {days:{}};          // this viewer's plays doc
 let others = new Map();        // uid -> doc (everyone, incl. me)
 let reveal = null;             // index of question whose reveal is showing
+let tick = null;               // timed-mode countdown
+const store = { get(k,d){ try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch(e){ return d; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} } };
+let TIMED = store.get("hw-timed", false);
+const reported = new Set(store.get("hw-reported", []).filter(k=>k.startsWith(DAY_KEY)));
+const repKey = (qi,id) => `${DAY_KEY}:${qi}:${id}`;
+const YKEY = new Date(EPOCH + (DAY-1)*864e5).toISOString().slice(0,10);
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -153,7 +158,8 @@ function closeToTruth(lie,q){
   const l = norm(lie); if(!l) return false;
   return q.accept.map(norm).some(t => l===t || (t.length>=4 && (l.includes(t))) || (Math.max(l.length,t.length)>=5 && 1-lev(l,t)/Math.max(l.length,t.length) >= .8));
 }
-const BLOCK = /(f+u+c+k|sh[i1]t|c+u+n+t|b[i1]tch|n[i1]gg|f[a@]gg|r[e3]t[a@]rd|wh[o0]re|sl[u]t|k[i1]ke|sp[i1]c\b|ch[i1]nk|tr[a@]nn|r[a@]p(e|ist)|n[a@]z[i1]|https?:|www\.|\.com\b)/i;
+// Same list as the server's check, with word boundaries so "grape" and "Scunthorpe" get through.
+const BLOCK = /(f+u+c+k|\bsh[i1]t|\bc+u+n+t|b[i1]tch|n[i1]gg|f[a@]gg|r[e3]t[a@]rd|wh[o0]re|\bsl[u]t|\bk[i1]ke|\bsp[i1]c\b|\bch[i1]nk|tr[a@]nn[iy]|\br[a@]p(e|ist)\b|\bn[a@]z[i1]|https?:|www\.|\.com\b)/i;
 function lieProblem(lie,q){
   const t = lie.trim();
   if(t.length < 2) return "Write at least a couple of letters.";
@@ -170,12 +176,13 @@ function aggregate(qi){
   let pickers = 0;
   for (const [id, doc] of others){
     const e = doc?.days?.[DAY_KEY]?.q?.[qi]; if(!e) continue;
-    if (e.lie && e.status==="ok") lies.set("u:"+id, e.lie);
+    if (e.lie && e.status==="ok" && !reported.has(repKey(qi,"u:"+id))) lies.set("u:"+id, e.lie);
     if (e.pick){
+      for (const s of (e.shown||[])) shown.set(s,(shown.get(s)||0)+1);
+      if (e.pick==="x") continue; // timed out
       pickers++;
       counts.set(e.pick,(counts.get(e.pick)||0)+1);
       if (e.pick.startsWith("u:")) fooled.set(e.pick,(fooled.get(e.pick)||0)+1);
-      for (const s of (e.shown||[])) shown.set(s,(shown.get(s)||0)+1);
     }
   }
   return {lies,fooled,shown,counts,pickers};
@@ -197,6 +204,7 @@ function chooseOptions(qi){
 function optText(qi,id){
   const q = todayQ[qi];
   if (id==="t") return q.a;
+  if (id==="x") return "nothing in time";
   if (id.startsWith("s")) return q.seeds[+id.slice(1)];
   const doc = id==="u:"+uid ? mine : others.get(id.slice(2));
   return doc?.days?.[DAY_KEY]?.q?.[qi]?.lie ?? "(a lie)";
@@ -269,6 +277,7 @@ function renderPips(){
 function current(){ const t = today(); const i = t.q.findIndex(e=>!e.pick); return i; }
 
 function render(){
+  clearInterval(tick); tick = null;
   $("#meta").textContent = `No. ${PUZZLE_NO} · ${new Date(EPOCH+DAY*864e5).toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}`;
   renderPips();
   const app = $("#app");
@@ -284,7 +293,9 @@ function qHTML(q){ return esc(q.q).replace("___",'<span class="blank">&nbsp;?&nb
 
 function renderWrite(app,i,q){
   const draft = sessionDraft[i] || "";
-  app.innerHTML = `<section class="card">
+  const y = i===0 ? yesterday() : null;
+  app.innerHTML = `${y?`<div class="banner" id="banner"><span>Yesterday your lies fooled <b>${y.n}</b> ${y.n===1?"player":"players"}${y.n?` for <b>+${y.n*10}</b> points`:""}.</span><button type="button" id="dismiss">Dismiss</button></div>`:""}
+  <section class="card">
     <div class="eyebrow">Fact ${i+1} of 3 · Write a lie</div>
     <p class="q">${qHTML(q)}</p>
     <p class="help">Fill the blank with something false but believable. Other players will see it among the choices.</p>
@@ -295,6 +306,7 @@ function renderWrite(app,i,q){
       <button class="btn" id="lock" type="submit">Lock in my lie</button>
     </form>
   </section>`;
+  if (y) $("#dismiss").onclick = ()=>{ store.set("hw-seen-y", DAY_KEY); $("#banner").remove(); };
   const inp = $("#lie");
   inp.addEventListener("input",()=>{ sessionDraft[i]=inp.value; $("#err").textContent=""; });
   $("#lieForm").addEventListener("submit", ev => {
@@ -312,42 +324,57 @@ function renderWrite(app,i,q){
   });
 }
 const sessionDraft = {};
+function yesterday(){
+  if (store.get("hw-seen-y","")===DAY_KEY) return null;
+  const played = mine.days[YKEY]?.q?.some(e=>e.lie);
+  if (backend==="server" && online && (played || history[YKEY])) return {n: history[YKEY]||0};
+  if (backend==="claude" && played) return {n: mine.days[YKEY].q.reduce((s,e,i)=>s+(e.status==="ok"?myFooled(YKEY,i):0),0)};
+  return null;
+}
 
 function renderPick(app,i,q,e){
-  if (!e.opts) { e.opts = chooseOptions(i); e.minePos = Math.floor(Math.random()*(e.opts.length+1)); save(); }
+  if (!e.opts) { e.opts = chooseOptions(i); e.minePos = Math.floor(Math.random()*(e.opts.length+1)); if (TIMED){ e.timed = true; e.deadline = Date.now()+30000; } save(); }
   const list = [...e.opts];
+  const finish = pick => { clearInterval(tick); tick = null; e.pick = pick; e.shown = list.filter(x=>x!=="t"); e.score = pick==="t"?100:0; save("pick", i); reveal = i; render(); };
+  if (e.deadline && Date.now() >= e.deadline) return finish("x");
   const minePos = e.minePos ?? list.length;
   app.innerHTML = `<section class="card">
     <div class="eyebrow">Fact ${i+1} of 3 · Find the truth</div>
     <p class="q">${qHTML(q)}</p>
     <p class="help">One of these is real. The rest are lies from other players.</p>
+    ${e.deadline?`<div class="timer" aria-hidden="true"><i id="bar"></i></div><div class="timer-label" id="secs" aria-live="off"></div>`:""}
     <div class="opts" id="opts"></div>
   </section>`;
   const box = $("#opts");
   const rows = list.map(id=>`<button class="opt" data-id="${id}" type="button"><span class="txt">${esc(optText(i,id))}</span></button>`);
   rows.splice(minePos,0,`<button class="opt mine" disabled type="button"><span class="txt">${esc(e.lie)}</span><span class="tag">Your lie</span></button>`);
   box.innerHTML = rows.join("");
-  box.querySelectorAll("button[data-id]").forEach(b=>b.addEventListener("click",()=>{
-    e.pick = b.dataset.id; e.shown = list.filter(x=>x!=="t"); e.score = e.pick==="t"?100:0;
-    save("pick", i); reveal = i; render();
-  }));
+  box.querySelectorAll("button[data-id]").forEach(b=>b.addEventListener("click",()=>finish(b.dataset.id)));
+  if (e.deadline){
+    const step = () => { const left = Math.max(0, e.deadline-Date.now());
+      $("#bar").style.width = (100*left/30000)+"%"; $("#secs").textContent = Math.ceil(left/1000)+"s";
+      if (!left) finish("x"); };
+    step(); tick = setInterval(step, 250);
+  }
 }
 
 function renderReveal(app,i){
   const q = todayQ[i], e = today().q[i], ag = aggregate(i);
   const total = Math.max(1, ag.pickers);
   const ids = e.status==="close" ? [] : e.opts;
-  const right = e.pick==="t";
+  const right = e.pick==="t", late = e.pick==="x";
   const rows = ids.map(id=>{
     const n = ag.counts.get(id)||0, pct = Math.round(100*n/total);
     const cls = id==="t" ? "truth" : (id===e.pick ? "picked-wrong" : "");
     const tag = id==="t" ? "True" : (id===e.pick ? "You picked" : "");
-    return `<div class="opt ${cls}"><span class="bar" style="width:${pct}%"></span><span class="txt">${esc(optText(i,id))}</span><span class="pct">${tag?tag+" · ":""}${pct}%</span></div>`;
+    const canReport = id.startsWith("u:") && id!=="u:"+uid;
+    const rep = canReport ? `<button class="report" type="button" data-rep="${id}" ${reported.has(repKey(i,id))?"disabled>Reported":">Report"}</button>` : "";
+    return `<div class="opt ${cls}"><span class="bar" style="width:${pct}%"></span><span class="txt">${esc(optText(i,id))}</span>${rep}<span class="pct">${tag?tag+" · ":""}${pct}%</span></div>`;
   }).join("");
   const headline = e.status==="close" ? "You wrote the real answer. You knew it already."
-    : right ? "You spotted the truth." : `Fooled by “${esc(optText(i,e.pick))}”.`;
+    : right ? "You spotted the truth." : late ? "Time's up." : `Fooled by “${optText(i,e.pick)}”.`;
   app.innerHTML = `<section class="card">
-    <span class="stamp ${right?"true":"fib"}">${right?"TRUE":"FIB"}</span>
+    <span class="stamp ${right?"true":"fib"}">${right?"TRUE":late?"TIME":"FIB"}</span>
     <div class="eyebrow">Fact ${i+1} of 3 · ${right?"+"+(e.score)+" points":"0 points"}</div>
     <p class="q" style="padding-right:84px">${esc(headline)}</p>
     ${rows?`<div class="opts">${rows}</div>`:""}
@@ -356,6 +383,11 @@ function renderReveal(app,i){
     <button class="btn" id="next" type="button">${current()===-1?"See my results":"Next fact"}</button>
   </section>`;
   $("#next").addEventListener("click",()=>{ reveal=null; render(); window.scrollTo({top:0}); });
+  app.querySelectorAll("button[data-rep]").forEach(b=>b.onclick=()=>{
+    const id = b.dataset.rep; reported.add(repKey(i,id)); store.set("hw-reported", [...reported]);
+    b.textContent = "Reported"; b.disabled = true;
+    if (backend==="server" && online) rpc("hw_report",{p_token:TOKEN,p_day:DAY_KEY,p_q:i,p_player:id.slice(2)}).catch(()=>{});
+  });
 }
 
 function renderResults(app){
@@ -365,11 +397,12 @@ function renderResults(app){
   const fooledToday = t.q.map((e,i)=> e.status==="ok" ? myFooled(DAY_KEY,i) : 0);
   const totalFooled = fooledToday.reduce((a,b)=>a+b,0);
   const score = base + totalFooled*10;
-  const share = `Hoodwinkle No. ${PUZZLE_NO}\n${t.q.map(e=>e.pick==="t"?"🟩":"🟥").join("")} ${truths}/3 truths\n🎭 My lies fooled ${totalFooled} ${totalFooled===1?"person":"people"}\n${score} pts`;
+  const share = `Hoodwinkle No. ${PUZZLE_NO}\n${t.q.map(e=>e.pick==="t"?"🟩":e.pick==="x"?"⏰":"🟥").join("")} ${truths}/3 truths${t.q.some(e=>e.timed)?" ⏱":""}\n🎭 My lies fooled ${totalFooled} ${totalFooled===1?"person":"people"}\n${score} pts`;
   const past = Object.keys(mine.days).filter(k=>k!==DAY_KEY).sort().reverse().slice(0,3).map(k=>{
     const n = backend==="server" ? (history[k]||0) : (mine.days[k].q||[]).reduce((s,e,i)=>s+(e.status==="ok"?myFooled(k,i):0),0);
     return `<li><span>${new Date(k+"T00:00:00Z").toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}</span><span>Your lies fooled <b>${n}</b></span></li>`;
   }).join("");
+  const st = recordStats(truths, score);
   const nextMs = EPOCH + (DAY+1)*864e5 - Date.now();
   const hrs = Math.floor(nextMs/36e5), mins = Math.floor(nextMs%36e5/6e4);
   app.innerHTML = `<section class="card">
@@ -382,6 +415,12 @@ function renderResults(app){
     <ul class="recap">${t.q.map((e,i)=>`<li><span>${esc(todayQ[i].q.replace("___", todayQ[i].a))}</span>${e.status==="ok"?`<span>Your lie: <span class="lie">${esc(e.lie)}</span> · fooled ${fooledToday[i]}</span>`:`<span>You wrote the real answer</span>`}</li>`).join("")}</ul>
     <pre class="share" id="shareText">${esc(share)}</pre>
     <div class="row"><button class="btn" id="copy" type="button">Copy result</button></div>
+    <div class="stats stats4" aria-label="Your stats">
+      <div class="stat"><b>${st.played}</b><span>Played</span></div>
+      <div class="stat"><b>${st.streak}</b><span>Day streak</span></div>
+      <div class="stat"><b>${st.best}</b><span>Best streak</span></div>
+      <div class="stat"><b>${st.rate}%</b><span>Truths found</span></div>
+    </div>
     <p class="note">${online?"Your lies keep working while you're away. Your score goes up every time someone falls for one.":"You're playing on this device only, so other players won't see your lies."} Next set in ${hrs}h ${mins}m.</p>
   </section>
   ${past?`<section class="card"><div class="eyebrow">Earlier lies</div><ul class="recap">${past}</ul></section>`:""}`;
@@ -390,6 +429,24 @@ function renderResults(app){
     catch(e){ const r=document.createRange(); r.selectNodeContents($("#shareText")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); $("#copy").textContent="Selected, press copy"; }
   });
 }
+
+/* ---------- stats (this device) ---------- */
+function recordStats(truths, score){
+  const days = store.get("hw-stats", {});
+  days[DAY_KEY] = {truths, score: Math.max(score, days[DAY_KEY]?.score||0)};
+  store.set("hw-stats", days);
+  const keys = Object.keys(days).sort();
+  const dayNo = k => Math.round((Date.parse(k+"T00:00:00Z")-EPOCH)/864e5);
+  let best = 0, run = 0, prev = null;
+  for (const k of keys){ const d = dayNo(k); run = prev!==null && d===prev+1 ? run+1 : 1; best = Math.max(best, run); prev = d; }
+  const streak = prev===DAY ? run : 0;
+  const found = keys.reduce((s,k)=>s+days[k].truths,0);
+  return {played: keys.length, streak, best, rate: Math.round(100*found/(3*keys.length))};
+}
+
+/* ---------- settings ---------- */
+{ const box = $("#timed"); box.checked = !!TIMED; box.onchange = () => { TIMED = box.checked; store.set("hw-timed", TIMED); }; }
+if (!store.get("hw-mine", null)) document.querySelector(".how").open = true;
 
 /* ---------- boot ---------- */
 try { const s = JSON.parse(localStorage.getItem("hw-mine")||"null"); if (s?.days) mine = s; } catch(e){}

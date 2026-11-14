@@ -134,7 +134,10 @@ const mod = (n,m)=>((n%m)+m)%m;
 const todayQ = [0,1,2].map(i => QUESTIONS[mod(DAY*3+i, QUESTIONS.length)]);
 
 /* ---------- state ---------- */
-let db = null, uid = null, online = false;
+// Public site backend: a small API (Neon Function) in front of Postgres. It
+// only exposes the hw_* database functions, which validate every write.
+const API_URL = "https://br-misty-base-be1smhoh-api.compute.c-9.us-east-2.aws.neon.tech";
+let db = null, uid = null, online = false, backend = null, TOKEN = null, history = {};
 let mine = {days:{}};          // this viewer's plays doc
 let others = new Map();        // uid -> doc (everyone, incl. me)
 let reveal = null;             // index of question whose reveal is showing
@@ -206,15 +209,55 @@ function myFooled(dayKey, qi){
 
 /* ---------- persistence ---------- */
 let saving = Promise.resolve();
-function save(){
+function save(kind, qi){
   try { localStorage.setItem("hw-mine", JSON.stringify(mine)); } catch(e){}
   if (!online) return;
-  const keep = Object.keys(mine.days).sort().slice(-7);
-  mine.days = Object.fromEntries(keep.map(k=>[k,mine.days[k]]));
-  const body = JSON.parse(JSON.stringify(mine));
-  saving = saving.then(()=>db.doc("plays/"+uid).set(body)).catch(e=>{
-    if (e?.code==="invalid_argument"){ online=false; setMode("Your lies stay on this device"); }
+  if (backend==="claude"){
+    const keep = Object.keys(mine.days).sort().slice(-7);
+    mine.days = Object.fromEntries(keep.map(k=>[k,mine.days[k]]));
+    const body = JSON.parse(JSON.stringify(mine));
+    saving = saving.then(()=>db.doc("plays/"+uid).set(body)).catch(e=>{
+      if (e?.code==="invalid_argument"){ online=false; setMode("Your lies stay on this device"); }
+    });
+  } else if (backend==="server" && kind){
+    const e = today().q[qi];
+    const send = kind==="lie"
+      ? () => rpc("hw_submit_lie",{p_token:TOKEN,p_day:DAY_KEY,p_q:qi,p_lie:e.lie,p_close:e.status==="close"})
+      : () => rpc("hw_submit_pick",{p_token:TOKEN,p_day:DAY_KEY,p_q:qi,p_pick:e.pick,p_shown:e.shown||[]});
+    saving = saving.then(send).then(refresh).catch(()=>setMode("Couldn't reach the server · will retry"));
+  }
+}
+
+/* ---------- public-site backend (Neon API) ---------- */
+async function rpc(fn, args){
+  const r = await fetch(`${API_URL}/rpc/${fn}`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(args)});
+  if (!r.ok) throw new Error(fn+" "+r.status);
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+async function refresh(){
+  const r = await rpc("hw_day",{p_token:TOKEN,p_day:DAY_KEY});
+  uid = r.me; history = r.history || {};
+  others = new Map(r.players.map(p=>{ const q=[{},{},{}]; for (const e of p.q) q[e.q] = {lie:e.lie,status:e.status,pick:e.pick,shown:e.shown||[]}; return [p.id,{days:{[DAY_KEY]:{q}}}]; }));
+  const srv = others.get(uid)?.days[DAY_KEY]?.q, t = today();
+  if (srv) srv.forEach((e,i)=>{
+    if (e.lie && !t.q[i].lie) Object.assign(t.q[i],{lie:e.lie,status:e.status});
+    if (e.pick && !t.q[i].pick) Object.assign(t.q[i],{pick:e.pick,shown:e.shown,score:e.pick==="t"?(e.status==="close"?150:100):0});
   });
+  setMode("Live · lies shared");
+  if (document.activeElement?.id!=="lie") render();
+  return srv;
+}
+async function bootServer(){
+  try { TOKEN = localStorage.getItem("hw-token"); } catch(e){}
+  if (!TOKEN){ TOKEN = crypto.randomUUID()+crypto.randomUUID(); try { localStorage.setItem("hw-token", TOKEN); } catch(e){} }
+  backend = "server";
+  try {
+    const srv = await refresh();
+    online = true;
+    // send anything played on this device before the server was reachable
+    today().q.forEach((e,i)=>{ if (e.lie && !srv?.[i]?.lie) save("lie",i); if (e.pick && !srv?.[i]?.pick) save("pick",i); });
+    setInterval(()=>{ if (!document.hidden) refresh().catch(()=>{}); }, 30000);
+  } catch(e){ setMode("Playing on this device"); }
 }
 
 /* ---------- rendering ---------- */
@@ -260,12 +303,12 @@ function renderWrite(app,i,q){
     const e = today().q[i];
     if (closeToTruth(lie,q)){
       Object.assign(e,{lie,status:"close",pick:"t",shown:[],opts:["t"],score:150});
-      save(); reveal = i; render(); return;
+      save("lie", i); reveal = i; render(); return;
     }
     const p = lieProblem(lie,q);
     if (p){ $("#err").textContent = p; return; }
     Object.assign(e,{lie,status:"ok"});
-    save(); render();
+    save("lie", i); render();
   });
 }
 const sessionDraft = {};
@@ -286,7 +329,7 @@ function renderPick(app,i,q,e){
   box.innerHTML = rows.join("");
   box.querySelectorAll("button[data-id]").forEach(b=>b.addEventListener("click",()=>{
     e.pick = b.dataset.id; e.shown = list.filter(x=>x!=="t"); e.score = e.pick==="t"?100:0;
-    save(); reveal = i; render();
+    save("pick", i); reveal = i; render();
   }));
 }
 
@@ -324,7 +367,7 @@ function renderResults(app){
   const score = base + totalFooled*10;
   const share = `Hoodwinkle No. ${PUZZLE_NO}\n${t.q.map(e=>e.pick==="t"?"🟩":"🟥").join("")} ${truths}/3 truths\n🎭 My lies fooled ${totalFooled} ${totalFooled===1?"person":"people"}\n${score} pts`;
   const past = Object.keys(mine.days).filter(k=>k!==DAY_KEY).sort().reverse().slice(0,3).map(k=>{
-    const n = (mine.days[k].q||[]).reduce((s,e,i)=>s+(e.status==="ok"?myFooled(k,i):0),0);
+    const n = backend==="server" ? (history[k]||0) : (mine.days[k].q||[]).reduce((s,e,i)=>s+(e.status==="ok"?myFooled(k,i):0),0);
     return `<li><span>${new Date(k+"T00:00:00Z").toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}</span><span>Your lies fooled <b>${n}</b></span></li>`;
   }).join("");
   const nextMs = EPOCH + (DAY+1)*864e5 - Date.now();
@@ -353,9 +396,11 @@ try { const s = JSON.parse(localStorage.getItem("hw-mine")||"null"); if (s?.days
 uid = uid || "local";
 render();
 
-(async () => {
-  const user = await window.claude?.use?.("user");
-  db = await window.claude?.use?.("db");
+if (!window.claude?.use) { API_URL ? bootServer() : setMode("Playing on this device"); }
+else (async () => {
+  backend = "claude";
+  const user = await window.claude.use("user");
+  db = await window.claude.use("db");
   const id = user ? await user.id() : null;
   if (!db || !id){ setMode("Playing on this device"); return; }
   uid = id; online = true; setMode("Live · lies shared");
